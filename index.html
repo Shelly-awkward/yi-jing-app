@@ -6,7 +6,7 @@
     <title>易經蓍草占卜</title>
     <style>
         body {
-            font-family: 'Microsoft JhengHei', '芫荽體', sans-serif;
+            font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -103,10 +103,9 @@
         <h1>🎋 易經蓍草占卜 🎋</h1>
         
         <div class="input-section">
-            <h3>📤 載入卦象資料庫</h3>
-            <div class="file-input">
-                <input type="file" id="databaseFile" accept=".txt" />
-                <p>請選擇 hexagram_database.txt 文件</p>
+            <h3>📊 資料庫狀態</h3>
+            <div id="databaseStatus" class="file-input">
+                <p>🔄 正在載入卦象資料庫...</p>
             </div>
         </div>
 
@@ -142,13 +141,20 @@
             }
 
             // 載入卦象資料庫
-            async loadHexagramDatabase(fileContent) {
+            async loadHexagramDatabase() {
                 try {
+                    // 嘗試從同目錄載入資料庫文件
+                    const response = await fetch('./hexagram_database.txt');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const fileContent = await response.text();
                     this.hexagramDatabase = this.parseDatabase(fileContent);
                     this.log('✅ 卦象資料庫載入成功！');
                     return true;
                 } catch (error) {
-                    this.log('❌ 載入資料庫失敗，使用內建簡化版本');
+                    this.log('❌ 載入外部資料庫失敗，使用內建簡化版本');
+                    this.log(`錯誤訊息: ${error.message}`);
                     this.hexagramDatabase = this.getBuiltInDatabase();
                     return false;
                 }
@@ -180,10 +186,11 @@
             // 內建簡化資料庫（備用）
             getBuiltInDatabase() {
                 return {
-                    '111111': { 序號: '01', 卦名: '乾', 卦辭: '元亨利貞', 爻辭: ['潛龍勿用', '見龍在田', '終日乾乾', '或躍在淵', '飛龍在天', '亢龍有悔'] },
-                    '000000': { 序號: '02', 卦名: '坤', 卦辭: '元亨，利牝馬之貞', 爻辭: ['履霜堅冰', '直方大', '含章可貞', '括囊無咎', '黃裳元吉', '龍戰於野'] },
-                    '000110': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['允升，大吉', '孚乃利用禴，無咎', '升虛邑', '王用亨於岐山，吉無咎', '貞吉，升階', '冥升，利於不息之貞'] },
-                    '010011': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['不出戶庭，無咎', '不出門庭，凶', '不節若，則嗟若，無咎', '安節，亨', '甘節，吉；往有尚', '苦節，貞凶，悔亡'] },
+                    '111111': { 序號: '01', 卦名: '乾', 卦辭: '元亨利貞', 爻辭: ['初九：潛龍勿用', '九二：見龍在田，利見大人', '九三：君子終日乾乾，夕惕若厲，無咎', '九四：或躍在淵，無咎', '九五：飛龍在天，利見大人', '上九：亢龍有悔'] },
+                    '000000': { 序號: '02', 卦名: '坤', 卦辭: '元亨，利牝馬之貞。君子有攸往，先迷後得主，利西南得朋，東北喪朋。安貞吉', 爻辭: ['初六：履霜，堅冰至', '六二：直，方，大，不習無不利', '六三：含章可貞。或從王事，無成有終', '六四：括囊；無咎，無譽', '六五：黃裳，元吉', '上六：龍戰於野，其血玄黃'] },
+                    '000110': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['初六：允升，大吉', '九二：孚乃利用禴，無咎', '九三：升虛邑', '六四：王用亨於岐山，吉無咎', '六五：貞吉，升階', '上六：冥升，利於不息之貞'] },
+                    '010011': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['初九：不出戶庭，無咎', '九二：不出門庭，凶', '六三：不節若，則嗟若，無咎', '六四：安節，亨', '九五：甘節，吉；往有尚', '上六：苦節，貞凶，悔亡'] },
+                    '010110': { 序號: '48', 卦名: '井', 卦辭: '改邑不改井，無喪無得，往來井井。汔至亦未繘井，羸其瓶，凶', 爻辭: ['初六：井泥不食，舊井無禽', '九二：井谷射鮒，甕敝漏', '九三：井渫不食，為我心惻，可用汲，王明，並受其福', '六四：井甃，無咎', '九五：井冽，寒泉食', '上六：井收勿幕，有孚元吉'] }
                 };
             }
 
@@ -349,17 +356,18 @@
         let divination = new IChingDivination();
         let currentResult = null;
 
-        // 檔案載入處理
-        document.getElementById('databaseFile').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const content = e.target.result;
-                    divination.loadHexagramDatabase(content);
-                    alert('資料庫載入完成！');
-                };
-                reader.readAsText(file, 'UTF-8');
+        // 頁面載入時自動載入資料庫
+        window.addEventListener('load', async function() {
+            const statusDiv = document.getElementById('databaseStatus');
+            try {
+                const success = await divination.loadHexagramDatabase();
+                if (success) {
+                    statusDiv.innerHTML = '<p style="color: green;">✅ 完整64卦資料庫載入成功！</p>';
+                } else {
+                    statusDiv.innerHTML = '<p style="color: orange;">⚠️ 使用內建簡化資料庫（建議上傳完整資料庫文件）</p>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<p style="color: red;">❌ 資料庫載入失敗，使用內建版本</p>';
             }
         });
 
@@ -369,11 +377,6 @@
             if (!question) {
                 alert('請輸入您的問題！');
                 return;
-            }
-
-            // 如果沒有載入資料庫，使用內建版本
-            if (!divination.hexagramDatabase) {
-                divination.hexagramDatabase = divination.getBuiltInDatabase();
             }
 
             try {
