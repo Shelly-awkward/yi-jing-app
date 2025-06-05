@@ -1,173 +1,453 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>易經算籌</title>
-  <style>
-    body { margin: 0; padding: 20px; font-family: "Microsoft JhengHei",sans-serif; background:#111827; color:#e5e7eb; display:flex; flex-direction:column; align-items:center; }
-    h1 { color:#f59e0b; margin-bottom:1rem; }
-    button { background:#f59e0b; color:#111827; border:none; padding:0.75rem 1.5rem; border-radius:6px; cursor:pointer; transition:background .2s; }
-    button:hover { background:#d97706; }
-    #results { margin-top:2rem; max-width:700px; width:100%; }
-    .line, .gua { background:rgba(255,255,255,0.1); padding:.75rem 1rem; border-radius:6px; margin-bottom:.75rem; }
-    .line strong, .gua strong { color:#f59e0b; }
-    .error { color:#f87171; font-weight:bold; }
-    .yao-list { margin:0.5rem 0 0 1rem; font-size:95%; color:#fbbf24; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>易經蓍草占卜</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .input-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+        }
+        .hexagram-display {
+            text-align: center;
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .yao-line {
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        .changing {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-  <h1>易經算籌</h1>
-  <button id="startBtn">開始算籌一卦</button>
-  <div id="results"></div>
-  <script>
-    // 八卦二進位→卦名
-    const trigramMap = {'111':'乾','110':'兌','101':'離','100':'震','011':'巽','010':'坎','001':'艮','000':'坤'};
-    // King Wen 64卦對應表（上卦+下卦 => 卦序號）
-    const kingWenTable = {
-      '乾乾':1, '坤坤':2, '水雷':3, '山水':4, '水天':5, '天地':6, '地水':7, '水地':8,
-      '風天':9, '天澤':10, '地天':11, '天地':12, '天火':13, '火天':14, '地山':15, '雷地':16,
-      '澤地':17, '山地':18, '地澤':19, '澤地':20, '澤雷':21, '雷澤':22, '山山':23, '雷雷':24,
-      '天雷':25, '山天':26, '山雷':27, '澤風':28, '水水':29, '火火':30, '澤山':31, '雷風':32,
-      '天山':33, '雷天':34, '火地':35, '地火':36, '風火':37, '火澤':38, '水山':39, '雷水':40,
-      '山澤':41, '雷風':42, '澤天':43, '天風':44, '澤地':45, '地風':46, '澤水':47, '水澤':48,
-      '澤火':49, '火澤':50, '雷雷':51, '山山':52, '風山':53, '雷山':54, '雷火':55, '火山':56,
-      '風風':57, '澤澤':58, '風水':59, '水風':60, '風澤':61, '雷澤':62, '水火':63, '火水':64
-    };
-    // King Wen 64卦辭
-    const hexagrams = {
-      1:{name:'乾',meaning:'乾為天，元亨利貞。君子終日乾乾，夕惕若，厲無咎。'},
-      2:{name:'坤',meaning:'坤為地，元亨，利牝馬之貞。君子有攸往，先迷後得主。利西南得朋，東北喪朋。安貞吉。'},
-      3:{name:'屯',meaning:'屯：元亨利貞。勿用有攸往，利建侯。'},
-      4:{name:'蒙',meaning:'蒙：亨。匪我求童蒙，童蒙求我。初筮告，再三瀆，瀆則不告。利貞。'},
-      5:{name:'需',meaning:'需：有孚，光亨，貞吉。利涉大川。'},
-      6:{name:'訟',meaning:'訟：有孚，窒惕，中吉，終凶。利見大人，不利涉大川。'},
-      7:{name:'師',meaning:'師：貞，丈人吉，無咎。'},
-      8:{name:'比',meaning:'比：吉。原筮，元永貞，無咎。不寧方來，後夫凶。'},
-      9:{name:'小畜',meaning:'小畜：亨。密雲不雨，自我西郊。'},
-      10:{name:'履',meaning:'履：履虎尾，不咥人，亨。'},
-      11:{name:'泰',meaning:'泰：小往大來，吉亨。'},
-      12:{name:'否',meaning:'否：否之匪人，不利君子貞，大往小來。'},
-      13:{name:'同人',meaning:'同人于野，亨。利涉大川，利君子貞。'},
-      14:{name:'大有',meaning:'大有：元亨。'},
-      15:{name:'謙',meaning:'謙：亨，君子有終。'},
-      16:{name:'豫',meaning:'豫：利建侯行師。'},
-      17:{name:'隨',meaning:'隨：元亨利貞，無咎。'},
-      18:{name:'蠱',meaning:'蠱：元亨，利涉大川。先甲三日，後甲三日。'},
-      19:{name:'臨',meaning:'臨：元亨利貞。至于八月有凶。'},
-      20:{name:'觀',meaning:'觀：盥而不薦，有孚顒若。'},
-      21:{name:'噬嗑',meaning:'噬嗑：亨。利用獄。'},
-      22:{name:'賁',meaning:'賁：亨。小利有攸往。'},
-      23:{name:'剝',meaning:'剝：不利有攸往。'},
-      24:{name:'復',meaning:'復：亨。出入無疾，朋來無咎。反復其道，七日來復，利有攸往。'},
-      25:{name:'無妄',meaning:'無妄：元亨利貞。其匪正有眚，不利有攸往。'},
-      26:{name:'大畜',meaning:'大畜：利貞，不家食吉，利涉大川。'},
-      27:{name:'頤',meaning:'頤：貞吉。觀頤，自求口實。'},
-      28:{name:'大過',meaning:'大過：棟橈，利有攸往，亨。'},
-      29:{name:'坎',meaning:'坎：習坎，有孚，維心亨，行有尚。'},
-      30:{name:'離',meaning:'離：利貞，亨。畜牝牛，吉。'},
-      31:{name:'咸',meaning:'咸：亨，利貞，取女吉。'},
-      32:{name:'恆',meaning:'恆：亨，無咎，利貞，利有攸往。'},
-      33:{name:'遯',meaning:'遯：亨，小利貞。'},
-      34:{name:'大壯',meaning:'大壯：利貞。'},
-      35:{name:'晉',meaning:'晉：康侯用錫馬蕃庶，晝日三接。'},
-      36:{name:'明夷',meaning:'明夷：利艱貞。'},
-      37:{name:'家人',meaning:'家人：利女貞。'},
-      38:{name:'睽',meaning:'睽：小事吉。'},
-      39:{name:'蹇',meaning:'蹇：利西南，不利東北；利見大人，貞吉。'},
-      40:{name:'解',meaning:'解：利西南，無所往，其來復吉。有攸往，夙吉。'},
-      41:{name:'損',meaning:'損：有孚，元吉，無咎，可貞，利有攸往。曷之用，二簋可用享。'},
-      42:{name:'益',meaning:'益：利有攸往，利涉大川。'},
-      43:{name:'夬',meaning:'夬：揚于王庭，孚號，有厲，告自邑，不利即戎，利有攸往。'},
-      44:{name:'姤',meaning:'姤：女壯，勿用取女。'},
-      45:{name:'萃',meaning:'萃：亨。王假有廟，利見大人，亨，利貞。用大牲吉，利有攸往。'},
-      46:{name:'升',meaning:'升：元亨，用見大人，勿恤，南征吉。'},
-      47:{name:'困',meaning:'困：亨，貞，大人吉，無咎，有言不信。'},
-      48:{name:'井',meaning:'井：改邑不改井，無喪無得，往來井井。汔至，亦未繘井，羸其瓶，凶。'},
-      49:{name:'革',meaning:'革：已日乃孚。元亨利貞，悔亡。'},
-      50:{name:'鼎',meaning:'鼎：元吉，亨。'},
-      51:{name:'震',meaning:'震：亨。震來虩虩，笑言啞啞。震驚百里，不喪匕鬯。'},
-      52:{name:'艮',meaning:'艮：艮其背，不獲其身，行其庭，不見其人，無咎。'},
-      53:{name:'漸',meaning:'漸：女歸吉，利貞。'},
-      54:{name:'歸妹',meaning:'歸妹：征凶，無攸利。'},
-      55:{name:'豐',meaning:'豐：亨，王假之，勿憂，宜日中。'},
-      56:{name:'旅',meaning:'旅：小亨，旅貞吉。'},
-      57:{name:'巽',meaning:'巽：小亨，利攸往，利見大人。'},
-      58:{name:'兌',meaning:'兌：亨，利貞。'},
-      59:{name:'渙',meaning:'渙：亨。王假有廟，利涉大川，利貞。'},
-      60:{name:'節',meaning:'節：亨。苦節不可貞。'},
-      61:{name:'中孚',meaning:'中孚：豚魚吉，利涉大川，利貞。'},
-      62:{name:'小過',meaning:'小過：亨，利貞，可小事，不可大事。飛鳥遺之音，不宜上宜下，大吉。'},
-      63:{name:'既濟',meaning:'既濟：亨小，利貞。初吉終亂。'},
-      64:{name:'未濟',meaning:'未濟：亨，小狐汔濟，濡其尾，無攸利。'}
-    };
-    // 取得本卦或之卦的 King Wen 序號
-    function getHexIdx(up, down) {
-      // 八卦名對應五行八卦序
-      const trans = {乾:'天',兌:'澤',離:'火',震:'雷',巽:'風',坎:'水',艮:'山',坤:'地'};
-      const upN = trans[up], downN = trans[down];
-      const key = upN + downN;
-      return kingWenTable[key] || null;
-    }
-    // 籌算一爻
-    function castLine() {
-      const rem = [rand1to4(), rand1to4(), rand1to4()];
-      const sum = rem.reduce((a, b) => a + b, 0);
-      const v = sum % 4 === 0 ? 6 : 6 + sum % 4;
-      return { remainders: rem, sum, value: v };
-    }
-    // 1~4隨機
-    function rand1to4() { return Math.floor(Math.random() * 4) + 1; }
+    <div class="container">
+        <h1>🎋 易經蓍草占卜 🎋</h1>
+        
+        <div class="input-section">
+            <h3>📤 載入卦象資料庫</h3>
+            <div class="file-input">
+                <input type="file" id="databaseFile" accept=".txt" />
+                <p>請選擇 hexagram_database.txt 文件</p>
+            </div>
+        </div>
 
-    document.getElementById('startBtn').addEventListener('click', () => {
-      const out = document.getElementById('results');
-      out.innerHTML = '';
-      const lines = [], movingYao = [];
-      for (let i = 0; i < 6; i++) {
-        const { remainders, sum, value } = castLine();
-        const isYang = value % 2 === 1;
-        const moving = value === 6 || value === 9;
-        const sym = isYang ? '陽' : '陰';
-        const note = moving ? '（動）' : '';
-        if (moving) movingYao.push(i + 1); // 記錄動爻（第幾爻，1為初爻）
-        const div = document.createElement('div');
-        div.className = 'line';
-        div.innerHTML = `<strong>第${i + 1}爻：</strong>餘${remainders.join('、')}（合${sum}），爻值${value} → ${sym}${note}`;
-        out.appendChild(div);
-        lines.push({ bit: isYang ? '1' : '0', moving });
-      }
-      // 本卦
-      const b = lines.map(x => x.bit);
-      const lowBin = b.slice(0, 3).reverse().join(''), upBin = b.slice(3).reverse().join('');
-      const upName = trigramMap[upBin], lowName = trigramMap[lowBin];
-      const idx1 = getHexIdx(upName, lowName);
-      let html = '';
-      if (idx1 && hexagrams[idx1]) {
-        html += `<strong>本卦：</strong>${hexagrams[idx1].name}（序 ${idx1}）<br><strong>卦辭：</strong>${hexagrams[idx1].meaning}`;
-      } else {
-        html += `<span class="error">查無本卦，請檢查資料</span>`;
-      }
-      // 變卦（之卦）
-      const nb = lines.map(x => x.moving ? (x.bit === '1' ? '0' : '1') : x.bit);
-      const lowBin2 = nb.slice(0, 3).reverse().join(''), upBin2 = nb.slice(3).reverse().join('');
-      const upName2 = trigramMap[upBin2], lowName2 = trigramMap[lowBin2];
-      const idx2 = getHexIdx(upName2, lowName2);
-      if (idx2 && hexagrams[idx2]) {
-        html += `<hr><strong>之卦：</strong>${hexagrams[idx2].name}（序 ${idx2}）<br><strong>卦辭：</strong>${hexagrams[idx2].meaning}`;
-      } else {
-        html += `<hr><span class="error">查無之卦，請檢查資料</span>`;
-      }
-      // 動爻提示
-      if (movingYao.length > 0) {
-        html += `<div class="yao-list">動爻位置：${movingYao.join('、')}（自下而上，1為初爻）</div>`;
-      } else {
-        html += `<div class="yao-list">本卦無動爻（純卦）</div>`;
-      }
-      // 輸出
-      const gd = document.createElement('div'); gd.className = 'gua';
-      gd.innerHTML = html;
-      out.appendChild(gd);
-    });
-  </script>
+        <div class="input-section">
+            <h3>❓ 請輸入您的問題</h3>
+            <textarea id="questionInput" placeholder="例如：今年的事業運勢如何？請指示明路..."></textarea>
+            <br>
+            <button onclick="startDivination()">🔮 開始占卜</button>
+            <button onclick="clearResults()">🗑️ 清除結果</button>
+        </div>
+
+        <div id="resultSection" class="result-section" style="display: none;">
+            <h3>📊 占卜結果</h3>
+            <div id="hexagramDisplay" class="hexagram-display"></div>
+            <div id="resultText"></div>
+        </div>
+
+        <div id="logSection" style="display: none;">
+            <h3>📝 詳細過程</h3>
+            <div id="logOutput" class="log-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // 易經蓍草占卜類別
+        class IChingDivination {
+            constructor() {
+                this.totalSticks = 50;
+                this.workingSticks = 49;
+                this.hexagramLines = [];
+                this.hexagramDatabase = null;
+                this.logMessages = [];
+            }
+
+            // 載入卦象資料庫
+            async loadHexagramDatabase(fileContent) {
+                try {
+                    this.hexagramDatabase = this.parseDatabase(fileContent);
+                    this.log('✅ 卦象資料庫載入成功！');
+                    return true;
+                } catch (error) {
+                    this.log('❌ 載入資料庫失敗，使用內建簡化版本');
+                    this.hexagramDatabase = this.getBuiltInDatabase();
+                    return false;
+                }
+            }
+
+            // 解析資料庫內容
+            parseDatabase(content) {
+                const database = {};
+                const lines = content.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('#') || line.trim() === '') continue;
+                    
+                    const parts = line.split('|');
+                    if (parts.length >= 6) {
+                        const [序號, 二進制, 卦名, 卦辭, ...爻辭] = parts;
+                        database[二進制] = {
+                            序號: 序號,
+                            卦名: 卦名,
+                            卦辭: 卦辭,
+                            爻辭: 爻辭
+                        };
+                    }
+                }
+                
+                return database;
+            }
+
+            // 內建簡化資料庫（備用）
+            getBuiltInDatabase() {
+                return {
+                    '111111': { 序號: '01', 卦名: '乾', 卦辭: '元亨利貞', 爻辭: ['潛龍勿用', '見龍在田', '終日乾乾', '或躍在淵', '飛龍在天', '亢龍有悔'] },
+                    '000000': { 序號: '02', 卦名: '坤', 卦辭: '元亨，利牝馬之貞', 爻辭: ['履霜堅冰', '直方大', '含章可貞', '括囊無咎', '黃裳元吉', '龍戰於野'] },
+                    '000110': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['允升，大吉', '孚乃利用禴，無咎', '升虛邑', '王用亨於岐山，吉無咎', '貞吉，升階', '冥升，利於不息之貞'] },
+                    '010011': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['不出戶庭，無咎', '不出門庭，凶', '不節若，則嗟若，無咎', '安節，亨', '甘節，吉；往有尚', '苦節，貞凶，悔亡'] },
+                };
+            }
+
+            // 記錄日誌
+            log(message) {
+                this.logMessages.push(message);
+                console.log(message);
+            }
+
+            // 模擬一次分籌的過程
+            performOneDivision(sticks) {
+                const leftPile = Math.floor(Math.random() * (sticks - 1)) + 1;
+                const rightPile = sticks - leftPile;
+                
+                let leftRemaining = leftPile - 1;
+                let gathered = 1;
+                
+                const leftRemainder = leftRemaining % 4;
+                gathered += (leftRemainder === 0) ? 4 : leftRemainder;
+                
+                const rightRemainder = rightPile % 4;
+                gathered += (rightRemainder === 0) ? 4 : rightRemainder;
+                
+                return sticks - gathered;
+            }
+
+            // 取一爻的過程（三變）
+            getOneYao() {
+                let sticks = this.workingSticks;
+                
+                for (let i = 0; i < 3; i++) {
+                    sticks = this.performOneDivision(sticks);
+                }
+                
+                const groups = sticks / 4;
+                return groups;
+            }
+
+            // 完整的占卜過程
+            async performDivination(question = "請問運勢如何？") {
+                this.logMessages = [];
+                this.log(`=== 易經蓍草占卜 ===`);
+                this.log(`問題: ${question}`);
+                this.log(`大衍之數五十，其用四十有九\n`);
+                
+                this.hexagramLines = [];
+                
+                // 取六爻，從初爻到上爻
+                for (let i = 1; i <= 6; i++) {
+                    this.log(`--- 取第${i}爻 ---`);
+                    const yaoValue = this.getOneYao();
+                    this.hexagramLines.push(yaoValue);
+                    
+                    const yaoName = i === 6 ? '上爻' : `第${i}爻`;
+                    this.log(`${yaoName}數值: ${yaoValue}`);
+                }
+                
+                return await this.interpretHexagram(question);
+            }
+
+            // 解釋卦象
+            async interpretHexagram(question) {
+                this.log(`\n=== 卦象解釋 ===`);
+                this.log('六爻數值（初爻到上爻）: ' + JSON.stringify(this.hexagramLines));
+                
+                // 確定陰陽爻和變爻
+                const yaoSymbols = this.hexagramLines.map((value, index) => {
+                    const yaoName = index === 5 ? '上爻' : `第${index + 1}爻`;
+                    let symbol, type, changing = false;
+                    
+                    switch (value) {
+                        case 6: symbol = '⚋'; type = '老陰'; changing = true; break;
+                        case 7: symbol = '⚊'; type = '少陽'; break;
+                        case 8: symbol = '⚋'; type = '少陰'; break;
+                        case 9: symbol = '⚊'; type = '老陽'; changing = true; break;
+                        default: symbol = '?'; type = `異常值${value}`; break;
+                    }
+                    
+                    return { yaoName, symbol, type, changing, value };
+                });
+                
+                // 顯示爻象（傳統排列：上爻在上）
+                this.log('\n卦象顯示（上爻在上）:');
+                for (let i = yaoSymbols.length - 1; i >= 0; i--) {
+                    const yao = yaoSymbols[i];
+                    const changeMark = yao.changing ? ' (變)' : '';
+                    this.log(`${yao.yaoName}: ${yao.symbol} ${yao.type}${changeMark}`);
+                }
+                
+                // 生成本卦二進制（配合資料庫格式：需要反轉順序）
+                const originalBinary = this.hexagramLines.map(value => 
+                    (value === 7 || value === 9) ? '1' : '0'
+                ).reverse().join('');
+                
+                // 生成之卦二進制
+                const changedBinary = this.hexagramLines.map(value => {
+                    if (value === 6) return '1';
+                    if (value === 9) return '0';
+                    return (value === 7 || value === 9) ? '1' : '0';
+                }).reverse().join('');
+                
+                // 變爻位置
+                const changingLines = this.hexagramLines
+                    .map((value, index) => value === 6 || value === 9 ? index + 1 : null)
+                    .filter(line => line !== null);
+                
+                // 查找本卦
+                const originalHexagram = this.findHexagram(originalBinary);
+                const changedHexagram = originalBinary !== changedBinary ? this.findHexagram(changedBinary) : null;
+                
+                // 顯示結果
+                this.log(`\n=== 占卜結果 ===`);
+                this.log(`問題: ${question}`);
+                this.log(`本卦: ${originalHexagram.卦名}卦 (${originalHexagram.序號})`);
+                this.log(`卦辭: ${originalHexagram.卦辭}`);
+                
+                if (changedHexagram) {
+                    this.log(`之卦: ${changedHexagram.卦名}卦 (${changedHexagram.序號})`);
+                    this.log(`之卦卦辭: ${changedHexagram.卦辭}`);
+                }
+                
+                if (changingLines.length > 0) {
+                    this.log(`變爻: 第${changingLines.join('、')}爻`);
+                    this.log('\n變爻爻辭:');
+                    changingLines.forEach(lineNum => {
+                        const yaoText = originalHexagram.爻辭[lineNum - 1];
+                        const lineName = lineNum === 6 ? '上爻' : `第${lineNum}爻`;
+                        this.log(`${lineName}: ${yaoText}`);
+                    });
+                } else {
+                    this.log('無變爻');
+                }
+                
+                return {
+                    question: question,
+                    originalHexagram: originalHexagram,
+                    changedHexagram: changedHexagram,
+                    yaoValues: this.hexagramLines,
+                    changingLines: changingLines,
+                    originalBinary: originalBinary,
+                    changedBinary: changedBinary,
+                    yaoSymbols: yaoSymbols,
+                    logs: this.logMessages
+                };
+            }
+
+            // 查找卦象
+            findHexagram(binary) {
+                if (this.hexagramDatabase && this.hexagramDatabase[binary]) {
+                    return this.hexagramDatabase[binary];
+                }
+                
+                return {
+                    序號: '??',
+                    卦名: '未知',
+                    卦辭: '查無此卦',
+                    爻辭: ['', '', '', '', '', '']
+                };
+            }
+        }
+
+        // 全域變數
+        let divination = new IChingDivination();
+        let currentResult = null;
+
+        // 檔案載入處理
+        document.getElementById('databaseFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    divination.loadHexagramDatabase(content);
+                    alert('資料庫載入完成！');
+                };
+                reader.readAsText(file, 'UTF-8');
+            }
+        });
+
+        // 開始占卜
+        async function startDivination() {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                alert('請輸入您的問題！');
+                return;
+            }
+
+            // 如果沒有載入資料庫，使用內建版本
+            if (!divination.hexagramDatabase) {
+                divination.hexagramDatabase = divination.getBuiltInDatabase();
+            }
+
+            try {
+                currentResult = await divination.performDivination(question);
+                displayResult(currentResult);
+            } catch (error) {
+                alert('占卜過程發生錯誤：' + error.message);
+            }
+        }
+
+        // 顯示結果
+        function displayResult(result) {
+            const resultSection = document.getElementById('resultSection');
+            const hexagramDisplay = document.getElementById('hexagramDisplay');
+            const resultText = document.getElementById('resultText');
+            const logSection = document.getElementById('logSection');
+            const logOutput = document.getElementById('logOutput');
+
+            // 顯示卦象
+            let hexagramHTML = '<h4>卦象</h4>';
+            for (let i = result.yaoSymbols.length - 1; i >= 0; i--) {
+                const yao = result.yaoSymbols[i];
+                const className = yao.changing ? 'changing' : '';
+                hexagramHTML += `<div class="yao-line ${className}">${yao.yaoName}: ${yao.symbol} ${yao.type}${yao.changing ? ' (變)' : ''}</div>`;
+            }
+            hexagramDisplay.innerHTML = hexagramHTML;
+
+            // 顯示結果文字
+            let resultHTML = `
+                <h4>📋 占卜結果</h4>
+                <p><strong>問題：</strong>${result.question}</p>
+                <p><strong>本卦：</strong>${result.originalHexagram.卦名}卦 (第${result.originalHexagram.序號}卦)</p>
+                <p><strong>卦辭：</strong>${result.originalHexagram.卦辭}</p>
+            `;
+
+            if (result.changedHexagram) {
+                resultHTML += `
+                    <p><strong>之卦：</strong>${result.changedHexagram.卦名}卦 (第${result.changedHexagram.序號}卦)</p>
+                    <p><strong>之卦卦辭：</strong>${result.changedHexagram.卦辭}</p>
+                `;
+            }
+
+            if (result.changingLines.length > 0) {
+                resultHTML += `<p><strong>變爻：</strong>第${result.changingLines.join('、')}爻</p>`;
+                resultHTML += '<h5>變爻爻辭：</h5>';
+                result.changingLines.forEach(lineNum => {
+                    const yaoText = result.originalHexagram.爻辭[lineNum - 1];
+                    const lineName = lineNum === 6 ? '上爻' : `第${lineNum}爻`;
+                    resultHTML += `<p><strong>${lineName}：</strong>${yaoText}</p>`;
+                });
+            } else {
+                resultHTML += '<p><strong>變爻：</strong>無</p>';
+            }
+
+            resultText.innerHTML = resultHTML;
+
+            // 顯示詳細過程
+            logOutput.textContent = result.logs.join('\n');
+
+            // 顯示區塊
+            resultSection.style.display = 'block';
+            logSection.style.display = 'block';
+
+            // 滾動到結果區域
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 清除結果
+        function clearResults() {
+            document.getElementById('questionInput').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('logSection').style.display = 'none';
+            currentResult = null;
+        }
+    </script>
 </body>
 </html>
