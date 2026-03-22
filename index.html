@@ -96,12 +96,71 @@
             border-radius: 5px;
             text-align: center;
         }
+        .api-section {
+            margin: 20px 0;
+            padding: 15px 20px;
+            background: #fef9ec;
+            border: 1px solid #f0c040;
+            border-radius: 10px;
+        }
+        .api-section summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #7d6000;
+            font-size: 15px;
+        }
+        .api-key-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .api-key-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .api-key-row button {
+            padding: 8px 16px;
+            font-size: 14px;
+            margin: 0;
+            background: #e67e22;
+        }
+        .api-key-row button:hover { background: #ca6f1e; }
+        #apiKeyStatus { font-size: 13px; margin-top: 6px; }
+        .ai-btn {
+            background: #8e44ad;
+            margin-top: 12px;
+        }
+        .ai-btn:hover { background: #7d3c98; }
+        .ai-btn:disabled { background: #bbb; cursor: not-allowed; }
+        .ai-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f4ecf7;
+            border-left: 4px solid #8e44ad;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 15px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎋 易經蓍草占卜 🎋</h1>
         
+        <details class="api-section">
+            <summary>🔑 OpenAI API Key 設定（AI解卦功能）</summary>
+            <div class="api-key-row">
+                <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+                <button onclick="saveApiKey()">儲存</button>
+            </div>
+            <div id="apiKeyStatus"></div>
+        </details>
+
         <div class="input-section">
             <h3>📊 資料庫狀態</h3>
             <div id="databaseStatus" class="file-input">
@@ -121,6 +180,8 @@
             <h3>📊 占卜結果</h3>
             <div id="hexagramDisplay" class="hexagram-display"></div>
             <div id="resultText"></div>
+            <button class="ai-btn" id="aiBtn" onclick="aiInterpret()">🤖 AI解卦（高島吞象）</button>
+            <div id="aiResult" style="display:none;"></div>
         </div>
 
         <div id="logSection" style="display: none;">
@@ -188,9 +249,9 @@
                 return {
                     '111111': { 序號: '01', 卦名: '乾', 卦辭: '元亨利貞', 爻辭: ['初九：潛龍勿用', '九二：見龍在田，利見大人', '九三：君子終日乾乾，夕惕若厲，無咎', '九四：或躍在淵，無咎', '九五：飛龍在天，利見大人', '上九：亢龍有悔'] },
                     '000000': { 序號: '02', 卦名: '坤', 卦辭: '元亨，利牝馬之貞。君子有攸往，先迷後得主，利西南得朋，東北喪朋。安貞吉', 爻辭: ['初六：履霜，堅冰至', '六二：直，方，大，不習無不利', '六三：含章可貞。或從王事，無成有終', '六四：括囊；無咎，無譽', '六五：黃裳，元吉', '上六：龍戰於野，其血玄黃'] },
-                    '000110': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['初六：允升，大吉', '九二：孚乃利用禴，無咎', '九三：升虛邑', '六四：王用亨於岐山，吉無咎', '六五：貞吉，升階', '上六：冥升，利於不息之貞'] },
-                    '010011': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['初九：不出戶庭，無咎', '九二：不出門庭，凶', '六三：不節若，則嗟若，無咎', '六四：安節，亨', '九五：甘節，吉；往有尚', '上六：苦節，貞凶，悔亡'] },
-                    '010110': { 序號: '48', 卦名: '井', 卦辭: '改邑不改井，無喪無得，往來井井。汔至亦未繘井，羸其瓶，凶', 爻辭: ['初六：井泥不食，舊井無禽', '九二：井谷射鮒，甕敝漏', '九三：井渫不食，為我心惻，可用汲，王明，並受其福', '六四：井甃，無咎', '九五：井冽，寒泉食', '上六：井收勿幕，有孚元吉'] }
+                    '011000': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['初六：允升，大吉', '九二：孚乃利用禴，無咎', '九三：升虛邑', '六四：王用亨於岐山，吉無咎', '六五：貞吉，升階', '上六：冥升，利於不息之貞'] },
+                    '110010': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['初九：不出戶庭，無咎', '九二：不出門庭，凶', '六三：不節若，則嗟若，無咎', '六四：安節，亨', '九五：甘節，吉；往有尚', '上六：苦節，貞凶，悔亡'] },
+                    '011010': { 序號: '48', 卦名: '井', 卦辭: '改邑不改井，無喪無得，往來井井。汔至亦未繘井，羸其瓶，凶', 爻辭: ['初六：井泥不食，舊井無禽', '九二：井谷射鮒，甕敝漏', '九三：井渫不食，為我心惻，可用汲，王明，並受其福', '六四：井甃，無咎', '九五：井冽，寒泉食', '上六：井收勿幕，有孚元吉'] }
                 };
             }
 
@@ -280,17 +341,17 @@
                     this.log(`${yao.yaoName}: ${yao.symbol} ${yao.type}${changeMark}`);
                 }
                 
-                // 生成本卦二進制（配合資料庫格式：需要反轉順序）
-                const originalBinary = this.hexagramLines.map(value => 
+                // 生成本卦二進制（初爻到上爻，配合資料庫格式）
+                const originalBinary = this.hexagramLines.map(value =>
                     (value === 7 || value === 9) ? '1' : '0'
-                ).reverse().join('');
-                
-                // 生成之卦二進制
+                ).join('');
+
+                // 生成之卦二進制（老陰→陽，老陽→陰，少陰少陽不變）
                 const changedBinary = this.hexagramLines.map(value => {
                     if (value === 6) return '1';
                     if (value === 9) return '0';
-                    return (value === 7 || value === 9) ? '1' : '0';
-                }).reverse().join('');
+                    return value === 7 ? '1' : '0';
+                }).join('');
                 
                 // 變爻位置
                 const changingLines = this.hexagramLines
@@ -449,7 +510,123 @@
             document.getElementById('questionInput').value = '';
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('logSection').style.display = 'none';
+            document.getElementById('aiResult').style.display = 'none';
+            document.getElementById('aiResult').innerHTML = '';
             currentResult = null;
+        }
+
+        // ── OpenAI API Key ──────────────────────────────────────
+        window.addEventListener('load', function() {
+            const saved = localStorage.getItem('openai_api_key');
+            if (saved) {
+                document.getElementById('apiKeyInput').value = saved;
+                document.getElementById('apiKeyStatus').textContent = '✅ 已載入儲存的 API Key';
+                document.getElementById('apiKeyStatus').style.color = 'green';
+            }
+        });
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            const status = document.getElementById('apiKeyStatus');
+            if (!key.startsWith('sk-')) {
+                status.textContent = '❌ 格式錯誤，Key 應以 sk- 開頭';
+                status.style.color = 'red';
+                return;
+            }
+            localStorage.setItem('openai_api_key', key);
+            status.textContent = '✅ 已儲存';
+            status.style.color = 'green';
+        }
+
+        // ── AI 解卦 ─────────────────────────────────────────────
+        async function aiInterpret() {
+            if (!currentResult) return;
+
+            const apiKey = localStorage.getItem('openai_api_key') || document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('請先設定 OpenAI API Key！');
+                return;
+            }
+
+            const btn = document.getElementById('aiBtn');
+            const aiDiv = document.getElementById('aiResult');
+            btn.disabled = true;
+            btn.textContent = '⏳ 正在解卦...';
+            aiDiv.style.display = 'block';
+            aiDiv.innerHTML = '<div class="ai-result">正在向易經專家請示⋯⋯</div>';
+
+            const r = currentResult;
+            const orig = r.originalHexagram;
+            const changed = r.changedHexagram;
+
+            // 組裝變爻資訊
+            let changingInfo = '本次占卜無變爻。';
+            if (r.changingLines.length > 0) {
+                const lines = r.changingLines.map(n => {
+                    const name = n === 6 ? '上爻' : `第${n}爻`;
+                    return `${name}：${orig.爻辭[n - 1]}`;
+                });
+                changingInfo = `變爻：第${r.changingLines.join('、')}爻\n${lines.join('\n')}`;
+            }
+
+            // 組裝之卦資訊
+            let changedInfo = '';
+            if (changed) {
+                changedInfo = `\n之卦：${changed.卦名}卦（第${changed.序號}卦）\n之卦卦辭：${changed.卦辭}`;
+            }
+
+            const userPrompt =
+`問卜者的問題：「${r.question}」
+
+占得本卦：${orig.卦名}卦（第${orig.序號}卦）
+卦辭：${orig.卦辭}${changedInfo}
+${changingInfo}
+
+請針對問卜者的問題「${r.question}」，以高島吞象的風格解析此卦，並給出具體建議。`;
+
+            const systemPrompt =
+`你是一位精通易經的卜卦專家，尤其擅長高島吞象（高島嘉右衛門）的解卦方式。
+
+高島吞象的解卦特色：
+1. 以實際人事物為基礎，不空談玄理
+2. 結合「本卦」與「之卦」（變卦）作綜合判斷
+3. 特別重視「動爻」（變爻）的指示
+4. 語氣肯定明確，給予具體的趨吉避凶建議
+5. 解卦時分段：先說卦象大意，再論變爻，最後綜合判斷
+
+請用繁體中文回答，語氣溫和但清晰，約300-500字。`;
+
+            try {
+                const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+                }
+
+                const data = await resp.json();
+                const text = data.choices[0].message.content;
+                aiDiv.innerHTML = `<div class="ai-result">${text.replace(/\n/g, '<br>')}</div>`;
+            } catch (e) {
+                aiDiv.innerHTML = `<div class="ai-result" style="color:red;">❌ 解卦失敗：${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 AI解卦（高島吞象）';
+            }
         }
     </script>
 </body>
