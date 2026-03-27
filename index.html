@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>易經蓍草占卜</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .input-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+        }
+        .hexagram-display {
+            text-align: center;
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .yao-line {
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        .changing {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .api-section {
+            margin: 20px 0;
+            padding: 15px 20px;
+            background: #fef9ec;
+            border: 1px solid #f0c040;
+            border-radius: 10px;
+        }
+        .api-section summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #7d6000;
+            font-size: 15px;
+        }
+        .api-key-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .api-key-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .api-key-row button {
+            padding: 8px 16px;
+            font-size: 14px;
+            margin: 0;
+            background: #e67e22;
+        }
+        .api-key-row button:hover { background: #ca6f1e; }
+        #apiKeyStatus { font-size: 13px; margin-top: 6px; }
+        .ai-btn {
+            background: #8e44ad;
+            margin-top: 12px;
+        }
+        .ai-btn:hover { background: #7d3c98; }
+        .ai-btn:disabled { background: #bbb; cursor: not-allowed; }
+        .ai-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f4ecf7;
+            border-left: 4px solid #8e44ad;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎋 易經蓍草占卜 🎋</h1>
+        
+        <details class="api-section">
+            <summary>🔑 OpenAI API Key 設定（AI解卦功能）</summary>
+            <div class="api-key-row">
+                <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+                <button onclick="saveApiKey()">儲存</button>
+            </div>
+            <div id="apiKeyStatus"></div>
+        </details>
+
+        <div class="input-section">
+            <h3>📊 資料庫狀態</h3>
+            <div id="databaseStatus" class="file-input">
+                <p>🔄 正在載入卦象資料庫...</p>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h3>❓ 請輸入您的問題</h3>
+            <textarea id="questionInput" placeholder="例如：今年的事業運勢如何？請指示明路..."></textarea>
+            <br>
+            <button onclick="startDivination()">🔮 開始占卜</button>
+            <button onclick="clearResults()">🗑️ 清除結果</button>
+        </div>
+
+        <div id="resultSection" class="result-section" style="display: none;">
+            <h3>📊 占卜結果</h3>
+            <div id="hexagramDisplay" class="hexagram-display"></div>
+            <div id="resultText"></div>
+            <button class="ai-btn" id="aiBtn" onclick="aiInterpret()">🤖 AI解卦（高島吞象）</button>
+            <div id="aiResult" style="display:none;"></div>
+        </div>
+
+        <div id="logSection" style="display: none;">
+            <h3>📝 詳細過程</h3>
+            <div id="logOutput" class="log-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // 易經蓍草占卜類別
+        class IChingDivination {
+            constructor() {
+                this.totalSticks = 50;
+                this.workingSticks = 49;
+                this.hexagramLines = [];
+                this.hexagramDatabase = null;
+                this.logMessages = [];
+            }
+
+            // 載入卦象資料庫
+            async loadHexagramDatabase() {
+                try {
+                    // 嘗試從同目錄載入資料庫文件
+                    const response = await fetch('./hexagram_database.txt');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const fileContent = await response.text();
+                    this.hexagramDatabase = this.parseDatabase(fileContent);
+                    this.log('✅ 卦象資料庫載入成功！');
+                    return true;
+                } catch (error) {
+                    this.log('❌ 載入外部資料庫失敗，使用內建簡化版本');
+                    this.log(`錯誤訊息: ${error.message}`);
+                    this.hexagramDatabase = this.getBuiltInDatabase();
+                    return false;
+                }
+            }
+
+            // 解析資料庫內容
+            parseDatabase(content) {
+                const database = {};
+                const lines = content.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('#') || line.trim() === '') continue;
+                    
+                    const parts = line.split('|');
+                    if (parts.length >= 6) {
+                        const [序號, 二進制, 卦名, 卦辭, ...爻辭] = parts;
+                        database[二進制] = {
+                            序號: 序號,
+                            卦名: 卦名,
+                            卦辭: 卦辭,
+                            爻辭: 爻辭
+                        };
+                    }
+                }
+                
+                return database;
+            }
+
+            // 內建簡化資料庫（備用）
+            getBuiltInDatabase() {
+                return {
+                    '111111': { 序號: '01', 卦名: '乾', 卦辭: '元亨利貞', 爻辭: ['初九：潛龍勿用', '九二：見龍在田，利見大人', '九三：君子終日乾乾，夕惕若厲，無咎', '九四：或躍在淵，無咎', '九五：飛龍在天，利見大人', '上九：亢龍有悔'] },
+                    '000000': { 序號: '02', 卦名: '坤', 卦辭: '元亨，利牝馬之貞。君子有攸往，先迷後得主，利西南得朋，東北喪朋。安貞吉', 爻辭: ['初六：履霜，堅冰至', '六二：直，方，大，不習無不利', '六三：含章可貞。或從王事，無成有終', '六四：括囊；無咎，無譽', '六五：黃裳，元吉', '上六：龍戰於野，其血玄黃'] },
+                    '011000': { 序號: '46', 卦名: '升', 卦辭: '元亨，用見大人，勿恤，南征吉', 爻辭: ['初六：允升，大吉', '九二：孚乃利用禴，無咎', '九三：升虛邑', '六四：王用亨於岐山，吉無咎', '六五：貞吉，升階', '上六：冥升，利於不息之貞'] },
+                    '110010': { 序號: '60', 卦名: '節', 卦辭: '亨。苦節不可貞', 爻辭: ['初九：不出戶庭，無咎', '九二：不出門庭，凶', '六三：不節若，則嗟若，無咎', '六四：安節，亨', '九五：甘節，吉；往有尚', '上六：苦節，貞凶，悔亡'] },
+                    '011010': { 序號: '48', 卦名: '井', 卦辭: '改邑不改井，無喪無得，往來井井。汔至亦未繘井，羸其瓶，凶', 爻辭: ['初六：井泥不食，舊井無禽', '九二：井谷射鮒，甕敝漏', '九三：井渫不食，為我心惻，可用汲，王明，並受其福', '六四：井甃，無咎', '九五：井冽，寒泉食', '上六：井收勿幕，有孚元吉'] }
+                };
+            }
+
+            // 記錄日誌
+            log(message) {
+                this.logMessages.push(message);
+                console.log(message);
+            }
+
+            // 模擬一次分籌的過程
+            performOneDivision(sticks) {
+                const leftPile = Math.floor(Math.random() * (sticks - 1)) + 1;
+                const rightPile = sticks - leftPile;
+                
+                let leftRemaining = leftPile - 1;
+                let gathered = 1;
+                
+                const leftRemainder = leftRemaining % 4;
+                gathered += (leftRemainder === 0) ? 4 : leftRemainder;
+                
+                const rightRemainder = rightPile % 4;
+                gathered += (rightRemainder === 0) ? 4 : rightRemainder;
+                
+                return sticks - gathered;
+            }
+
+            // 取一爻的過程（三變）
+            getOneYao() {
+                let sticks = this.workingSticks;
+                
+                for (let i = 0; i < 3; i++) {
+                    sticks = this.performOneDivision(sticks);
+                }
+                
+                const groups = sticks / 4;
+                return groups;
+            }
+
+            // 完整的占卜過程
+            async performDivination(question = "請問運勢如何？") {
+                this.logMessages = [];
+                this.log(`=== 易經蓍草占卜 ===`);
+                this.log(`問題: ${question}`);
+                this.log(`大衍之數五十，其用四十有九\n`);
+                
+                this.hexagramLines = [];
+                
+                // 取六爻，從初爻到上爻
+                for (let i = 1; i <= 6; i++) {
+                    this.log(`--- 取第${i}爻 ---`);
+                    const yaoValue = this.getOneYao();
+                    this.hexagramLines.push(yaoValue);
+                    
+                    const yaoName = i === 6 ? '上爻' : `第${i}爻`;
+                    this.log(`${yaoName}數值: ${yaoValue}`);
+                }
+                
+                return await this.interpretHexagram(question);
+            }
+
+            // 解釋卦象
+            async interpretHexagram(question) {
+                this.log(`\n=== 卦象解釋 ===`);
+                this.log('六爻數值（初爻到上爻）: ' + JSON.stringify(this.hexagramLines));
+                
+                // 確定陰陽爻和變爻
+                const yaoSymbols = this.hexagramLines.map((value, index) => {
+                    const yaoName = index === 5 ? '上爻' : `第${index + 1}爻`;
+                    let symbol, type, changing = false;
+                    
+                    switch (value) {
+                        case 6: symbol = '⚋'; type = '老陰'; changing = true; break;
+                        case 7: symbol = '⚊'; type = '少陽'; break;
+                        case 8: symbol = '⚋'; type = '少陰'; break;
+                        case 9: symbol = '⚊'; type = '老陽'; changing = true; break;
+                        default: symbol = '?'; type = `異常值${value}`; break;
+                    }
+                    
+                    return { yaoName, symbol, type, changing, value };
+                });
+                
+                // 顯示爻象（傳統排列：上爻在上）
+                this.log('\n卦象顯示（上爻在上）:');
+                for (let i = yaoSymbols.length - 1; i >= 0; i--) {
+                    const yao = yaoSymbols[i];
+                    const changeMark = yao.changing ? ' (變)' : '';
+                    this.log(`${yao.yaoName}: ${yao.symbol} ${yao.type}${changeMark}`);
+                }
+                
+                // 生成本卦二進制（初爻到上爻，配合資料庫格式）
+                const originalBinary = this.hexagramLines.map(value =>
+                    (value === 7 || value === 9) ? '1' : '0'
+                ).join('');
+
+                // 生成之卦二進制（老陰→陽，老陽→陰，少陰少陽不變）
+                const changedBinary = this.hexagramLines.map(value => {
+                    if (value === 6) return '1';
+                    if (value === 9) return '0';
+                    return value === 7 ? '1' : '0';
+                }).join('');
+                
+                // 變爻位置
+                const changingLines = this.hexagramLines
+                    .map((value, index) => value === 6 || value === 9 ? index + 1 : null)
+                    .filter(line => line !== null);
+                
+                // 查找本卦
+                const originalHexagram = this.findHexagram(originalBinary);
+                const changedHexagram = originalBinary !== changedBinary ? this.findHexagram(changedBinary) : null;
+                
+                // 顯示結果
+                this.log(`\n=== 占卜結果 ===`);
+                this.log(`問題: ${question}`);
+                this.log(`本卦: ${originalHexagram.卦名}卦 (${originalHexagram.序號})`);
+                this.log(`卦辭: ${originalHexagram.卦辭}`);
+                
+                if (changedHexagram) {
+                    this.log(`之卦: ${changedHexagram.卦名}卦 (${changedHexagram.序號})`);
+                    this.log(`之卦卦辭: ${changedHexagram.卦辭}`);
+                }
+                
+                if (changingLines.length > 0) {
+                    this.log(`變爻: 第${changingLines.join('、')}爻`);
+                    this.log('\n變爻爻辭:');
+                    changingLines.forEach(lineNum => {
+                        const yaoText = originalHexagram.爻辭[lineNum - 1];
+                        const lineName = lineNum === 6 ? '上爻' : `第${lineNum}爻`;
+                        this.log(`${lineName}: ${yaoText}`);
+                    });
+                } else {
+                    this.log('無變爻');
+                }
+                
+                return {
+                    question: question,
+                    originalHexagram: originalHexagram,
+                    changedHexagram: changedHexagram,
+                    yaoValues: this.hexagramLines,
+                    changingLines: changingLines,
+                    originalBinary: originalBinary,
+                    changedBinary: changedBinary,
+                    yaoSymbols: yaoSymbols,
+                    logs: this.logMessages
+                };
+            }
+
+            // 查找卦象
+            findHexagram(binary) {
+                if (this.hexagramDatabase && this.hexagramDatabase[binary]) {
+                    return this.hexagramDatabase[binary];
+                }
+                
+                return {
+                    序號: '??',
+                    卦名: '未知',
+                    卦辭: '查無此卦',
+                    爻辭: ['', '', '', '', '', '']
+                };
+            }
+        }
+
+        // 全域變數
+        let divination = new IChingDivination();
+        let currentResult = null;
+
+        // 頁面載入時自動載入資料庫
+        window.addEventListener('load', async function() {
+            const statusDiv = document.getElementById('databaseStatus');
+            try {
+                const success = await divination.loadHexagramDatabase();
+                if (success) {
+                    statusDiv.innerHTML = '<p style="color: green;">✅ 完整64卦資料庫載入成功！</p>';
+                } else {
+                    statusDiv.innerHTML = '<p style="color: orange;">⚠️ 使用內建簡化資料庫（建議上傳完整資料庫文件）</p>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<p style="color: red;">❌ 資料庫載入失敗，使用內建版本</p>';
+            }
+        });
+
+        // 開始占卜
+        async function startDivination() {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                alert('請輸入您的問題！');
+                return;
+            }
+
+            try {
+                currentResult = await divination.performDivination(question);
+                displayResult(currentResult);
+            } catch (error) {
+                alert('占卜過程發生錯誤：' + error.message);
+            }
+        }
+
+        // 顯示結果
+        function displayResult(result) {
+            const resultSection = document.getElementById('resultSection');
+            const hexagramDisplay = document.getElementById('hexagramDisplay');
+            const resultText = document.getElementById('resultText');
+            const logSection = document.getElementById('logSection');
+            const logOutput = document.getElementById('logOutput');
+
+            // 顯示卦象
+            let hexagramHTML = '<h4>卦象</h4>';
+            for (let i = result.yaoSymbols.length - 1; i >= 0; i--) {
+                const yao = result.yaoSymbols[i];
+                const className = yao.changing ? 'changing' : '';
+                hexagramHTML += `<div class="yao-line ${className}">${yao.yaoName}: ${yao.symbol} ${yao.type}${yao.changing ? ' (變)' : ''}</div>`;
+            }
+            hexagramDisplay.innerHTML = hexagramHTML;
+
+            // 顯示結果文字
+            let resultHTML = `
+                <h4>📋 占卜結果</h4>
+                <p><strong>問題：</strong>${result.question}</p>
+                <p><strong>本卦：</strong>${result.originalHexagram.卦名}卦 (第${result.originalHexagram.序號}卦)</p>
+                <p><strong>卦辭：</strong>${result.originalHexagram.卦辭}</p>
+            `;
+
+            if (result.changedHexagram) {
+                resultHTML += `
+                    <p><strong>之卦：</strong>${result.changedHexagram.卦名}卦 (第${result.changedHexagram.序號}卦)</p>
+                    <p><strong>之卦卦辭：</strong>${result.changedHexagram.卦辭}</p>
+                `;
+            }
+
+            if (result.changingLines.length > 0) {
+                resultHTML += `<p><strong>變爻：</strong>第${result.changingLines.join('、')}爻</p>`;
+                resultHTML += '<h5>變爻爻辭：</h5>';
+                result.changingLines.forEach(lineNum => {
+                    const yaoText = result.originalHexagram.爻辭[lineNum - 1];
+                    const lineName = lineNum === 6 ? '上爻' : `第${lineNum}爻`;
+                    resultHTML += `<p><strong>${lineName}：</strong>${yaoText}</p>`;
+                });
+            } else {
+                resultHTML += '<p><strong>變爻：</strong>無</p>';
+            }
+
+            resultText.innerHTML = resultHTML;
+
+            // 顯示詳細過程
+            logOutput.textContent = result.logs.join('\n');
+
+            // 顯示區塊
+            resultSection.style.display = 'block';
+            logSection.style.display = 'block';
+
+            // 滾動到結果區域
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 清除結果
+        function clearResults() {
+            document.getElementById('questionInput').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('logSection').style.display = 'none';
+            document.getElementById('aiResult').style.display = 'none';
+            document.getElementById('aiResult').innerHTML = '';
+            currentResult = null;
+        }
+
+        // ── OpenAI API Key ──────────────────────────────────────
+        window.addEventListener('load', function() {
+            const saved = localStorage.getItem('openai_api_key');
+            if (saved) {
+                document.getElementById('apiKeyInput').value = saved;
+                document.getElementById('apiKeyStatus').textContent = '✅ 已載入儲存的 API Key';
+                document.getElementById('apiKeyStatus').style.color = 'green';
+            }
+        });
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            const status = document.getElementById('apiKeyStatus');
+            if (!key.startsWith('sk-')) {
+                status.textContent = '❌ 格式錯誤，Key 應以 sk- 開頭';
+                status.style.color = 'red';
+                return;
+            }
+            localStorage.setItem('openai_api_key', key);
+            status.textContent = '✅ 已儲存';
+            status.style.color = 'green';
+        }
+
+        // ── AI 解卦 ─────────────────────────────────────────────
+        async function aiInterpret() {
+            if (!currentResult) return;
+
+            const apiKey = localStorage.getItem('openai_api_key') || document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('請先設定 OpenAI API Key！');
+                return;
+            }
+
+            const btn = document.getElementById('aiBtn');
+            const aiDiv = document.getElementById('aiResult');
+            btn.disabled = true;
+            btn.textContent = '⏳ 正在解卦...';
+            aiDiv.style.display = 'block';
+            aiDiv.innerHTML = '<div class="ai-result">正在向易經專家請示⋯⋯</div>';
+
+            const r = currentResult;
+            const orig = r.originalHexagram;
+            const changed = r.changedHexagram;
+
+            // 組裝變爻資訊
+            let changingInfo = '本次占卜無變爻。';
+            if (r.changingLines.length > 0) {
+                const lines = r.changingLines.map(n => {
+                    const name = n === 6 ? '上爻' : `第${n}爻`;
+                    return `${name}：${orig.爻辭[n - 1]}`;
+                });
+                changingInfo = `變爻：第${r.changingLines.join('、')}爻\n${lines.join('\n')}`;
+            }
+
+            // 組裝之卦資訊
+            let changedInfo = '';
+            if (changed) {
+                changedInfo = `\n之卦：${changed.卦名}卦（第${changed.序號}卦）\n之卦卦辭：${changed.卦辭}`;
+            }
+
+            const userPrompt =
+`問卜者的問題：「${r.question}」
+
+占得本卦：${orig.卦名}卦（第${orig.序號}卦）
+卦辭：${orig.卦辭}${changedInfo}
+${changingInfo}
+
+請針對問卜者的問題「${r.question}」，以高島吞象的風格解析此卦，並給出具體建議。`;
+
+            const systemPrompt =
+`你是一位精通易經的卜卦專家，尤其擅長高島吞象（高島嘉右衛門）的解卦方式。
+
+高島吞象的解卦特色：
+1. 以實際人事物為基礎，不空談玄理
+2. 結合「本卦」與「之卦」（變卦）作綜合判斷
+3. 特別重視「動爻」（變爻）的指示
+4. 語氣肯定明確，給予具體的趨吉避凶建議
+5. 解卦時分段：先說卦象大意，再論變爻，最後綜合判斷
+
+請用繁體中文回答，語氣溫和但清晰，約300-500字。`;
+
+            try {
+                const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+                }
+
+                const data = await resp.json();
+                const text = data.choices[0].message.content;
+                aiDiv.innerHTML = `<div class="ai-result">${text.replace(/\n/g, '<br>')}</div>`;
+            } catch (e) {
+                aiDiv.innerHTML = `<div class="ai-result" style="color:red;">❌ 解卦失敗：${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 AI解卦（高島吞象）';
+            }
+        }
+    </script>
+</body>
+</html>
