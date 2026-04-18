@@ -13,9 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 注入 API Key
+      - name: 注入 API Keys
         run: |
-          sed -i "s/YOUR_API_KEY_HERE/${{ secrets.OPENAI_API_KEY }}/g" index.html
+          sed -i "s/YOUR_ANTHROPIC_KEY_HERE/${{ secrets.ANTHROPIC_API_KEY }}/g" index.html
+          sed -i "s/YOUR_GEMINI_KEY_HERE/${{ secrets.GEMINI_API_KEY }}/g" index.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
