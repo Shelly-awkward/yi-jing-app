@@ -124,27 +124,6 @@
     border-radius: 5px;
     font-size: 14px;
 }
-.api-key-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    align-items: center;
-}
-.api-key-row input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 14px;
-}
-.api-key-row button {
-    padding: 8px 16px;
-    font-size: 14px;
-    margin: 0;
-    background: #e67e22;
-}
-.api-key-row button:hover { background: #ca6f1e; }
-#apiKeyStatus { font-size: 13px; margin-top: 6px; }
 .ai-btn {
     background: #8e44ad;
     margin-top: 12px;
@@ -167,20 +146,14 @@
     <div class="container">
         <h1>🎋 易經蓍草占卜 🎋</h1>
         
-<details class="api-section" open>
-    <summary>🤖 AI 解卦設定</summary>
-
+<div class="api-section">
     <div class="model-select-row">
-        <label>選擇模型：</label>
-        <select id="modelSelect" onchange="onModelChange()">
+        <label>🤖 選擇模型：</label>
+        <select id="modelSelect">
             <optgroup label="Claude（Anthropic）推薦">
                 <option value="claude|claude-sonnet-4-6">Claude Sonnet 4.6 ⭐</option>
                 <option value="claude|claude-opus-4-7">Claude Opus 4.7（最強）</option>
                 <option value="claude|claude-haiku-4-5-20251001">Claude Haiku 4.5（快速）</option>
-            </optgroup>
-            <optgroup label="ChatGPT（OpenAI）">
-                <option value="openai|gpt-4o">GPT-4o</option>
-                <option value="openai|gpt-4o-mini">GPT-4o Mini（經濟）</option>
             </optgroup>
             <optgroup label="Gemini（Google）">
                 <option value="gemini|gemini-2.0-flash">Gemini 2.0 Flash</option>
@@ -188,15 +161,7 @@
             </optgroup>
         </select>
     </div>
-
-    <div id="apiKeyArea">
-        <div class="api-key-row">
-            <input type="password" id="apiKeyInput" placeholder="輸入 API Key..." autocomplete="off">
-            <button onclick="saveApiKey()">儲存</button>
-        </div>
-        <div id="apiKeyStatus"></div>
-    </div>
-</details>
+</div>
         <div class="input-section">
             <h3>📊 資料庫狀態</h3>
             <div id="databaseStatus" class="file-input">
@@ -551,43 +516,15 @@
             currentResult = null;
         }
 
-        // ── 模型 / API Key 管理 ──────────────────────────────────────
-const PROVIDER_KEYS = { claude: 'anthropic_api_key', openai: 'openai_api_key', gemini: 'gemini_api_key' };
-const PROVIDER_PLACEHOLDER = {
-    claude: 'sk-ant-...',
-    openai: 'sk-...',
-    gemini: 'AIza...'
-};
+        // ── 模型選擇 ──────────────────────────────────────────────
+const ANTHROPIC_API_KEY = 'YOUR_ANTHROPIC_KEY_HERE';
+const GEMINI_API_KEY = 'YOUR_GEMINI_KEY_HERE';
 
 function getSelectedProvider() {
     const val = document.getElementById('modelSelect').value;
     const [provider, model] = val.split('|');
     return { provider, model };
 }
-
-function onModelChange() {
-    const { provider } = getSelectedProvider();
-    const saved = localStorage.getItem(PROVIDER_KEYS[provider]) || '';
-    document.getElementById('apiKeyInput').value = saved;
-    document.getElementById('apiKeyInput').placeholder = PROVIDER_PLACEHOLDER[provider];
-    const status = document.getElementById('apiKeyStatus');
-    status.textContent = saved ? `✅ 已載入 ${provider} API Key` : '';
-    status.style.color = 'green';
-}
-
-function saveApiKey() {
-    const { provider } = getSelectedProvider();
-    const key = document.getElementById('apiKeyInput').value.trim();
-    const status = document.getElementById('apiKeyStatus');
-    if (!key) { status.textContent = '❌ 請輸入 Key'; status.style.color = 'red'; return; }
-    localStorage.setItem(PROVIDER_KEYS[provider], key);
-    status.textContent = `✅ ${provider} API Key 已儲存`;
-    status.style.color = 'green';
-}
-
-window.addEventListener('load', function() {
-    onModelChange(); // 載入預設模型的 key
-});
 
 // ── Prompt 組裝（共用）──────────────────────────────────────
 function buildPrompts(r) {
@@ -634,12 +571,12 @@ ${changingInfo}
 }
 
 // ── 各 Provider API 呼叫 ────────────────────────────────────
-async function callClaude(model, system, user, apiKey) {
+async function callClaude(model, system, user) {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
             'content-type': 'application/json',
-            'x-api-key': apiKey,
+            'x-api-key': ANTHROPIC_API_KEY,
             'anthropic-version': '2023-06-01',
             'anthropic-dangerous-direct-browser-access': 'true'
         },
@@ -655,23 +592,8 @@ async function callClaude(model, system, user, apiKey) {
     return data.content[0].text;
 }
 
-async function callOpenAI(model, system, user, apiKey) {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model,
-            messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-            temperature: 0.7
-        })
-    });
-    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || `HTTP ${resp.status}`); }
-    const data = await resp.json();
-    return data.choices[0].message.content;
-}
-
-async function callGemini(model, system, user, apiKey) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+async function callGemini(model, system, user) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     const resp = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -691,8 +613,6 @@ async function aiInterpret() {
     if (!currentResult) return;
 
     const { provider, model } = getSelectedProvider();
-    const apiKey = localStorage.getItem(PROVIDER_KEYS[provider]) || document.getElementById('apiKeyInput').value.trim();
-    if (!apiKey) { alert(`請先設定 ${provider} API Key！`); return; }
 
     const btn = document.getElementById('aiBtn');
     const aiDiv = document.getElementById('aiResult');
@@ -705,9 +625,8 @@ async function aiInterpret() {
 
     try {
         let text;
-        if (provider === 'claude') text = await callClaude(model, system, user, apiKey);
-        else if (provider === 'openai') text = await callOpenAI(model, system, user, apiKey);
-        else text = await callGemini(model, system, user, apiKey);
+        if (provider === 'claude') text = await callClaude(model, system, user);
+        else text = await callGemini(model, system, user);
 
         aiDiv.innerHTML = `<div class="ai-result">${text.replace(/\n/g, '<br>')}</div>`;
     } catch (e) {
