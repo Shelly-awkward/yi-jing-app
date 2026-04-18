@@ -605,7 +605,10 @@ function buildPrompts(r) {
 
     let changedInfo = '';
     if (changed) {
-        changedInfo = `\n之卦：${changed.卦名}卦（第${changed.序號}卦）\n之卦卦辭：${changed.卦辭}`;
+        const changedYaoTexts = changed.爻辭
+            .map((t, i) => `  ${i === 5 ? '上爻' : '第' + (i + 1) + '爻'}：${t}`)
+            .join('\n');
+        changedInfo = `\n之卦：${changed.卦名}卦（第${changed.序號}卦）\n之卦卦辭：${changed.卦辭}\n之卦爻辭：\n${changedYaoTexts}`;
     }
 
     const system = `你是一位精通易經的卜卦專家，尤其擅長高島吞象（高島嘉右衛門）的解卦方式。
