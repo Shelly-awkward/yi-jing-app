@@ -140,6 +140,22 @@
     line-height: 1.7;
     font-size: 15px;
 }
+.hepta-btn { background: #16a085; margin-top: 12px; }
+.hepta-btn:hover { background: #12876f; }
+.hepta-btn:disabled { background: #bbb; cursor: not-allowed; }
+.hepta-note {
+    margin-top: 15px;
+    padding: 15px;
+    background: #e8f8f5;
+    border-left: 4px solid #16a085;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 14px;
+    max-height: 360px;
+    overflow-y: auto;
+    user-select: all;
+}
     </style>
 </head>
 <body>
@@ -186,7 +202,9 @@
             <div id="hexagramDisplay" class="hexagram-display"></div>
             <div id="resultText"></div>
             <button class="ai-btn" id="aiBtn" onclick="aiInterpret()">🤖 AI解卦</button>
+            <button class="hepta-btn" id="heptaBtn" onclick="copyToHeptabase()">📤 推送到 Heptabase</button>
             <div id="aiResult" style="display:none;"></div>
+            <div id="heptaNote" class="hepta-note" style="display:none;"></div>
         </div>
 
         <div id="logSection" style="display: none;">
@@ -421,6 +439,7 @@
         // 全域變數
         let divination = new IChingDivination();
         let currentResult = null;
+        let lastAiInterpretation = null;
 
         // 頁面載入時自動載入資料庫
         window.addEventListener('load', async function() {
@@ -455,6 +474,12 @@
 
         // 顯示結果
         function displayResult(result) {
+            // 新的一卦：清掉上一卦的 AI 解卦與 Heptabase 提示
+            lastAiInterpretation = null;
+            const heptaNote = document.getElementById('heptaNote');
+            heptaNote.style.display = 'none';
+            heptaNote.textContent = '';
+
             const resultSection = document.getElementById('resultSection');
             const hexagramDisplay = document.getElementById('hexagramDisplay');
             const resultText = document.getElementById('resultText');
@@ -517,7 +542,11 @@
             document.getElementById('logSection').style.display = 'none';
             document.getElementById('aiResult').style.display = 'none';
             document.getElementById('aiResult').innerHTML = '';
+            const heptaNote = document.getElementById('heptaNote');
+            heptaNote.style.display = 'none';
+            heptaNote.textContent = '';
             currentResult = null;
+            lastAiInterpretation = null;
         }
 
         // ── 模型選擇 ──────────────────────────────────────────────
@@ -598,6 +627,7 @@ async function aiInterpret() {
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
         const text = data.text;
+        lastAiInterpretation = text;
 
         aiDiv.innerHTML = `<div class="ai-result">${text.replace(/\n/g, '<br>')}</div>`;
     } catch (e) {
@@ -607,6 +637,126 @@ async function aiInterpret() {
         const modelName = document.getElementById('modelSelect').options[document.getElementById('modelSelect').selectedIndex].text;
         btn.textContent = `🤖 AI解卦（${modelName}）`;
     }
+}
+
+// ── 推送到 Heptabase（透過 Claude 中介）──────────────────────
+// Heptabase 沒有公開寫入 API，唯一程式化寫入路徑是其 MCP server（給 Claude/ChatGPT 用）。
+// 因此本按鈕不直接寫入，而是把「給 Claude 的現成指令」複製到剪貼簿，
+// 由已連 Heptabase MCP 的 Claude 呼叫 save_to_note_card 存卡。
+function heptaToday() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function heptaYaoName(n) {
+    return n === 6 ? '上爻' : `第${n}爻`;
+}
+
+// 依使用者偏好的卡片格式，組出一段交給 Claude 的指令
+function buildHeptabasePrompt(r) {
+    const date = heptaToday();
+    const orig = r.originalHexagram;
+    const changed = r.changedHexagram;
+
+    let hexLine = `${orig.卦名}卦（第${orig.序號}卦）`;
+    if (changed) hexLine += ` 之 ${changed.卦名}卦（第${changed.序號}卦）`;
+    if (r.changingLines.length > 0) {
+        hexLine += `，變爻：${r.changingLines.map(heptaYaoName).join('、')}`;
+        if (r.changingLines.length >= 2) hexLine += '（多爻變，請依傳統以最上動爻為主斷）';
+    } else {
+        hexLine += '（無變爻，以本卦卦辭為主斷）';
+    }
+
+    let changingBlock = '無變爻。';
+    if (r.changingLines.length > 0) {
+        changingBlock = r.changingLines
+            .map(n => `  ${heptaYaoName(n)}：${orig.爻辭[n - 1]}`)
+            .join('\n');
+    }
+
+    let changedBlock = '無之卦。';
+    if (changed) {
+        changedBlock = `${changed.卦名}卦（第${changed.序號}卦）\n之卦卦辭：${changed.卦辭}`;
+    }
+
+    const aiRef = lastAiInterpretation
+        ? `\n【已有的 AI 解卦（僅供參考，可取用或忽略）】\n${lastAiInterpretation}\n`
+        : '';
+
+    return `請依我偏好的格式解這一卦，並用 Heptabase 的 save_to_note_card 工具存成一張卡片。
+
+【我偏好的卡片格式範本】
+# 占卦｜<簡短主題>（${date}）
+
+**問題**：<原問題>
+
+**卦象**：<本卦>之<之卦>，變爻…（若多爻變，註明以何爻為主斷）
+
+**斷語：<一句話結論，如「應可合格，有驚無險」這類明確判斷>**
+
+## 推理鏈
+
+1. **本卦…「<卦辭關鍵>」**→ …
+
+1. **<主爻>「<爻辭>」**（主爻）→ …
+
+1. **之卦…「<卦辭>」**→ …
+
+## 行動
+
+- …
+
+## 驗證
+
+- [ ] 事後回此卡補記實際結果
+
+【本次占卜資料】
+日期：${date}
+問題：${r.question}
+本卦：${orig.卦名}卦（第${orig.序號}卦）
+本卦卦辭：${orig.卦辭}
+卦象摘要：${hexLine}
+變爻爻辭：
+${changingBlock}
+之卦：${changedBlock}
+${aiRef}
+請直接呼叫 save_to_note_card 存檔，標題用「占卦｜<簡短主題>（${date}）」。`;
+}
+
+async function copyToHeptabase() {
+    if (!currentResult) { alert('請先占卜！'); return; }
+    const text = buildHeptabasePrompt(currentResult);
+    const note = document.getElementById('heptaNote');
+
+    let ok = false;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            ok = true;
+        }
+    } catch (e) { ok = false; }
+
+    if (!ok) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+        } catch (e) { ok = false; }
+    }
+
+    note.style.display = 'block';
+    const header = ok
+        ? '✅ 已複製「給 Claude 的推送指令」！\n請切到 Claude（已連 Heptabase MCP）貼上送出，Claude 會依你偏好的格式解卦並存進 Heptabase。\n\n─── 以下為複製內容（可再次手動選取複製）───\n\n'
+        : '⚠️ 自動複製失敗，請手動選取以下全部內容，貼給 Claude：\n\n';
+    note.textContent = header + text;
+    note.scrollIntoView({ behavior: 'smooth' });
 }
     </script>
 </body>
