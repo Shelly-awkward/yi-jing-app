@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # 允許在 Actions 頁面手動重跑，不必為了重新部署而硬推一個 commit 到 main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,3 +20,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
+          publish_branch: gh-pages
+          # gh-pages 分支若被刪除，這裡會重新建立；不保留舊歷史
+          force_orphan: true
+          exclude_assets: '.github,index.html3'
