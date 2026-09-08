@@ -594,14 +594,30 @@ async function aiInterpret() {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ provider, model, system, user })
         });
-        if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
-        const data = await resp.json();
-        if (data.error) throw new Error(data.error);
+        // 先把回應內容讀成文字，不管成功失敗都能看到 Worker 實際回了什麼
+        const raw = await resp.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch (_) { /* 不是 JSON，保留原始文字 */ }
+
+        if (!resp.ok) {
+            const detail = (data && (data.error || data.message))
+                ? (typeof data.error === 'object' ? JSON.stringify(data.error) : (data.error || data.message))
+                : raw.slice(0, 300);
+            throw new Error(`Worker HTTP ${resp.status}${detail ? '：' + detail : ''}`);
+        }
+        if (!data) throw new Error('Worker 回傳的不是 JSON：' + raw.slice(0, 300));
+        if (data.error) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : data.error);
         const text = data.text;
+        if (!text) throw new Error('Worker 回傳內容缺少 text 欄位：' + raw.slice(0, 300));
 
         aiDiv.innerHTML = `<div class="ai-result">${text.replace(/\n/g, '<br>')}</div>`;
     } catch (e) {
-        aiDiv.innerHTML = `<div class="ai-result" style="color:red;">❌ 解卦失敗：${e.message}</div>`;
+        // fetch 本身失敗（連不到 Worker、CORS 被擋、斷網）時 message 只有 "Failed to fetch"，補上白話說明
+        const msg = (e instanceof TypeError)
+            ? `連不到 Worker（${WORKER_URL}）。可能是 Worker 被刪除、網址改了，或瀏覽器擋掉跨網域請求。原始錯誤：${e.message}`
+            : e.message;
+        const safe = msg.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        aiDiv.innerHTML = `<div class="ai-result" style="color:red;">❌ 解卦失敗：${safe}</div>`;
     } finally {
         btn.disabled = false;
         const modelName = document.getElementById('modelSelect').options[document.getElementById('modelSelect').selectedIndex].text;
